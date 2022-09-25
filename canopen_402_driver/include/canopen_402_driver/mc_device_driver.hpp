@@ -52,6 +52,19 @@ namespace ros2_canopen
         std::shared_ptr<RemoteObject> create_remote_obj(uint16_t index, uint8_t subindex, CODataTypes type)
         {
             RemoteObject obj = {index, subindex, 0, type, false, false, true};
+            for(auto it = objs.begin(); it != objs.end(); ++it)
+            {
+                if(
+                    ((*it)->index == index)
+                    &&
+                    ((*it)->subindex == subindex)
+                    &&
+                    ((*it)->type == type)
+                )
+                {
+                    return *it;
+                }
+            }
             std::shared_ptr<RemoteObject> objp = std::make_shared<RemoteObject>(obj);
             objs.push_back(objp);
             return objp;
@@ -197,6 +210,14 @@ namespace ros2_canopen
                     case CODataTypes::COData32:
                         obj->rpdo_mapped = this->tpdo_mapped[obj->index][obj->subindex].Read<uint32_t>();
                         break;
+                    default:
+                        throw lely::canopen::SdoError(
+                            this->get_id(), 
+                            obj->index, 
+                            obj->subindex, 
+                            std::make_error_code(std::errc::function_not_supported),
+                            "Unkown used, type must be 8, 16 or 32.");
+                        break;
                     }
                     obj->tpdo_mapped = true;
                 }
@@ -218,6 +239,14 @@ namespace ros2_canopen
                     case CODataTypes::COData32:
                         obj->rpdo_mapped = this->rpdo_mapped[obj->index][obj->subindex].Read<uint32_t>();
                         break;
+                    default:
+                        throw lely::canopen::SdoError(
+                            this->get_id(), 
+                            obj->index, 
+                            obj->subindex, 
+                            std::make_error_code(std::errc::function_not_supported),
+                            "Unkown used, type must be 8, 16 or 32.");
+                        break;
                     }
                     obj->rpdo_mapped = true;
                 }
@@ -237,6 +266,8 @@ namespace ros2_canopen
                 case CODataTypes::COData32:
                     obj->data = get_remote_obj<uint32_t>(obj);
                     break;
+                default:
+                break;
                 }
                 std::cout << "Initialised object :" 
                     << this->get_id() << " " 

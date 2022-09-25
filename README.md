@@ -22,13 +22,11 @@
 The documentation is generated using sphinx and doxygen. The current version for master can be found [here](https://ros-industrial.github.io/ros2_canopen/).
 
 ## Status
-Currently under development.
+Currently under development. Not for production use.
 
 **Available Features:**
 * Device Manager (using rclcpp::components)
 * CANopen Master (Service Interface)
 * ProxyDriver (Service Interface)
 * MotionControllerDriver (Service Interface)
-
-**Features under Development:**
-* System Interface (using ros2_control::SystemInterface)
+* Generic ros2_control Interface (implementing `hardware_interface::SystemInterface`) - check https://control.ros.org for more details

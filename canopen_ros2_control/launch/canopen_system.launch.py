@@ -35,10 +35,11 @@ from launch.actions import OpaqueFunction
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
-import launch
-import launch_ros
-import lifecycle_msgs.msg
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def launch_setup(context, *args, **kwargs):
@@ -112,10 +113,17 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
+    # load one controller just to make sure it can connect to controller_manager
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+    )
+
+    canopen_proxy_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["node_1_controller", "--controller-manager", "/controller_manager"],
     )
 
     robot_state_publisher_node = Node(
@@ -125,52 +133,39 @@ def launch_setup(context, *args, **kwargs):
         parameters=[robot_description],
     )
 
-    # hardcoded slave
+    # hardcoded slave configuration form test package
     slave_config = PathJoinSubstitution(
-        [FindPackageShare(master_config_package), master_config_directory, "pdo.eds"]
+        [FindPackageShare(master_config_package), master_config_directory, "simple.eds"]
     )
-    slave_node = launch_ros.actions.LifecycleNode(
-        name="slave_node",
-        namespace="",
-        package="canopen_core",
-        output="screen",
-        executable="slave_node",
-        parameters=[{
-            "eds": slave_config,
-            "slave_id": 2,
-            "test": "pdo_counter"}
-        ],
+
+    slave_launch = PathJoinSubstitution(
+        [FindPackageShare("canopen_mock_slave"), "launch", "basic_slave.launch.py"]
     )
-    slave_inactive_state_handler = launch.actions.RegisterEventHandler(
-        launch_ros.event_handlers.OnStateTransition(
-            target_lifecycle_node=slave_node, goal_state='inactive',
-            entities=[
-                launch.actions.LogInfo(
-                    msg="node 'slave_node_{}' reached the 'inactive' state, 'activating'.".format(2)),
-                launch.actions.EmitEvent(event=launch_ros.events.lifecycle.ChangeState(
-                    lifecycle_node_matcher=launch.events.matches_action(
-                        slave_node),
-                    transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE,
-                )),
-            ],
-        )
+    slave_node_1 = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(slave_launch),
+        launch_arguments={
+            "node_id": "2", 
+            "node_name": "slave_node",
+            "slave_config": slave_config,
+            }.items(),
     )
-    slave_configure = launch.actions.EmitEvent(
-        event=launch_ros.events.lifecycle.ChangeState(
-            lifecycle_node_matcher=launch.events.matches_action(
-                slave_node),
-            transition_id=lifecycle_msgs.msg.Transition.TRANSITION_CONFIGURE,
-        )
+
+    slave_node_2 = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(slave_launch),
+        launch_arguments={
+            "node_id": "3", 
+            "node_name": "slave_node",
+            "slave_config": slave_config,
+            }.items(),
     )
 
     nodes_to_start = [
         control_node,
         robot_state_publisher_node,
         joint_state_broadcaster_spawner,
-        slave_node,
-        slave_inactive_state_handler,
-        slave_configure,
-
+        slave_node_1,
+        slave_node_2,
+        canopen_proxy_controller_spawner,
     ]
 
     return nodes_to_start
@@ -189,7 +184,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "prefix",
-            description="IP address by which the robot can be reached.",
+            description="Prefix.",
             default_value=""
         )
     )
@@ -231,35 +226,35 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "bus_config_package",
-            default_value="canopen_proxy_driver",
+            default_value="canopen_tests",
             description="Path to bus configuration.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "bus_config_directory",
-            default_value="config/pdo_test",
+            default_value="config/simple",
             description="Path to bus configuration.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "bus_config_file",
-            default_value="pdo.yml",
+            default_value="bus.yml",
             description="Path to bus configuration.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "master_config_package",
-            default_value="canopen_proxy_driver",
+            default_value="canopen_tests",
             description="Path to master configuration file (*.dcf)",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "master_config_directory",
-            default_value="config/pdo_test",
+            default_value="config/simple",
             description="Path to master configuration file (*.dcf)",
         )
     )
