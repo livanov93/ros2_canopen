@@ -1,0 +1,13 @@
+version: '2.4'
+services:
+  humble_glxheads_test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    environment:
+      - DISPLAY
+    privileged: true
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /home/lovro/development/probotica/canopen:/home/can_ws
